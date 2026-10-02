@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Trail Log</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="theme-color" content="#14281f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Trail Log">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f3efe6;--card:#fffdf8;--ink:#1d2b24;--mute:#6d7b73;--acc:#2f6b4f;--line:#e2dccd;--hero1:#14281f;--hero2:#2f6b4f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101914;--card:#1a261f;--ink:#e8efe9;--mute:#9db0a5;--acc:#6fcf9f;--line:#2c3d33}}
+:root[data-theme="dark"]{--bg:#101914;--card:#1a261f;--ink:#e8efe9;--mute:#9db0a5;--acc:#6fcf9f;--line:#2c3d33}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+.page{max-width:640px;margin:0 auto;min-height:100vh}
+.hidden,[hidden]{display:none!important}
+
+/* home */
+.hero{background:linear-gradient(160deg,var(--hero1),var(--hero2));color:#fff;padding:36px 22px 70px;border-radius:0 0 32px 32px;position:relative;overflow:hidden}
+.hero h1{margin:0;font-size:2rem;letter-spacing:-.5px}
+.hero p{margin:6px 0 0;opacity:.8}
+.hero svg{position:absolute;right:0;bottom:0;width:100%;height:90px;opacity:.25}
+.choices{padding:0 18px;margin-top:-42px;display:grid;gap:14px;position:relative}
+.choice{display:flex;align-items:center;gap:16px;width:100%;text-align:left;border:0;border-radius:22px;padding:22px 18px;color:#fff;font:inherit;box-shadow:0 8px 22px rgba(0,0,0,.18);cursor:pointer}
+.choice.h{background:linear-gradient(135deg,#2f6b4f,#4f9a73)}
+.choice.c{background:linear-gradient(135deg,#b4582a,#e08a3c)}
+.choice.t{background:linear-gradient(135deg,#34495e,#5d7a99)}
+.bar.t{background:linear-gradient(135deg,#34495e,#5d7a99)}
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.tcell{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;text-align:center}
+.tcell b{display:block;font-size:2rem;color:var(--acc);font-variant-numeric:tabular-nums}
+.tcell.big{grid-column:1/-1}.tcell.big b{font-size:3rem}
+.tcell span{font-size:.75rem;color:var(--mute)}
+.tbtns{display:grid;gap:10px}
+.tbtns button{padding:16px;border:0;border-radius:16px;font-size:1.1rem;font-weight:700;color:#fff;font-family:inherit}
+#lock{position:fixed;inset:0;z-index:99;background:#000;color:#8a8a8a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;touch-action:none;user-select:none;-webkit-user-select:none;text-align:center}
+#lock b{font-size:3.4rem;color:#b5b5b5;font-variant-numeric:tabular-nums}
+#lock .sm{font-size:1.1rem}
+#lock button{margin-top:40px;background:none;border:1px solid #444;color:#8a8a8a;border-radius:999px;padding:16px 34px;font-size:1rem;font-family:inherit;touch-action:none}
+#lock button.hold{border-color:#6fcf9f;color:#6fcf9f}
+#tResetBtn,#lBtn{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#tResetBtn{background:none!important;border:1px solid #c0392b!important;color:#c0392b!important;font-size:.95rem!important;padding:12px!important}
+#tResetBtn.hold{background:#c0392b!important;color:#fff!important}
+#tLock{background:#34495e}
+#tStart{background:#2f6b4f}#tPause{background:#d4a017}#tFinish{background:#c0392b}
+#tWarn{background:#fff3cd;color:#664d03;border-radius:12px;padding:10px 12px;font-size:.85rem;margin:0 0 12px}
+#tTip{color:var(--mute);font-size:.78rem;margin-top:14px;line-height:1.5}
+#tStatus{text-align:center;color:var(--mute);font-size:.82rem;margin:0 0 12px}
+.choice .ic{font-size:2.6rem}
+.choice b{display:block;font-size:1.35rem}
+.choice span{opacity:.88;font-size:.9rem}
+.choice:active{transform:scale(.98)}
+.tip{text-align:center;color:var(--mute);font-size:.8rem;padding:22px 24px}
+
+/* sub pages */
+.bar{display:flex;align-items:center;gap:10px;padding:14px 16px;color:#fff;border-radius:0 0 24px 24px}
+.bar.h{background:linear-gradient(135deg,#2f6b4f,#4f9a73)}
+.bar.c{background:linear-gradient(135deg,#b4582a,#e08a3c)}
+.bar h2{margin:0;font-size:1.3rem;flex:1}
+.back{background:rgba(255,255,255,.22);border:0;color:#fff;width:38px;height:38px;border-radius:50%;font-size:1.2rem}
+.body{padding:16px}
+.stats{display:flex;gap:8px;margin-bottom:14px}
+.stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 4px;text-align:center}
+.stat b{display:block;font-size:1.25rem;color:var(--acc)}
+.stat span{font-size:.72rem;color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.card h3{margin:0 0 3px;font-size:1.05rem}
+.meta{color:var(--mute);font-size:.85rem}
+.notes{margin:8px 0 0;font-size:.92rem}
+.row{display:flex;gap:8px;margin-top:10px}
+.row a,.row button{font-size:.82rem;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--acc);text-decoration:none;font-family:inherit}
+.row button.del{color:#c0392b}
+form{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+form .full{grid-column:1/-1}
+label{font-size:.76rem;color:var(--mute);display:block;margin-bottom:2px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit}
+.primary{background:var(--acc);color:#fff;border:0;padding:13px;border-radius:14px;font-size:1rem;font-weight:600;width:100%}
+.ghost{background:none;border:1px dashed var(--acc);color:var(--acc);padding:10px;border-radius:10px;font:inherit}
+.empty{text-align:center;color:var(--mute);padding:30px 10px}
+.empty i{display:block;font-size:2.4rem;font-style:normal;margin-bottom:6px}
+#note{font-size:.75rem;color:var(--mute);text-align:center;padding:10px 0 24px}
+</style>
+</head>
+<body>
+<div class="page">
+
+<section id="home">
+  <div class="hero">
+    <h1>⛰️ Trail Log</h1>
+    <p>Your hikes and campsites, all in one place.</p>
+    <svg viewBox="0 0 400 90" preserveAspectRatio="none"><path d="M0 90 L60 30 L100 60 L160 10 L230 70 L290 25 L350 65 L400 40 L400 90Z" fill="#fff"/></svg>
+  </div>
+  <div class="choices">
+    <button class="choice h" data-go="hiking"><div class="ic">🥾</div><div><b>Hiking</b><span id="hc">0 hikes logged</span></div></button>
+    <button class="choice c" data-go="camping"><div class="ic">🏕️</div><div><b>Camping</b><span id="cc">0 campsites saved</span></div></button>
+    <button class="choice t" data-go="track"><div class="ic">📡</div><div><b>Track a hike</b><span id="tc">Record distance, elevation &amp; speed live</span></div></button>
+  </div>
+  <div class="tip">Your hikes and campsites are saved on this phone.</div>
+</section>
+
+<section id="sub" class="hidden">
+  <div class="bar" id="bar"><button class="back" id="back" aria-label="Back">←</button><h2 id="title"></h2></div>
+  <div class="body">
+    <div class="stats" id="stats"></div>
+    <button class="primary" id="toggle" style="margin-bottom:14px"></button>
+    <form id="form" hidden></form>
+    <div id="list"></div>
+    <div id="note"></div>
+  </div>
+</section>
+
+<section id="trk" class="hidden">
+  <div class="bar t"><button class="back" id="tBack" aria-label="Back">←</button><h2>📡 Track a hike</h2></div>
+  <div class="body">
+    <p id="tStatus">Ready. Keep your screen on while tracking.</p>
+    <p id="tWarn" hidden></p>
+    <div class="tgrid">
+      <div class="tcell big"><b id="tDist">0.00</b><span>distance (km)</span></div>
+      <div class="tcell"><b id="tTime">0:00:00</b><span>time</span></div>
+      <div class="tcell"><b id="tAvg">0.0</b><span>avg speed (km/h)</span></div>
+      <div class="tcell"><b id="tGain">0</b><span>elevation gain (m)</span></div>
+      <div class="tcell"><b id="tNow">0.0</b><span>current speed (km/h)</span></div>
+    </div>
+    <div class="tbtns">
+      <button id="tStart">▶ Start hike</button>
+      <button id="tPause" class="hidden">⏸ Pause</button>
+      <button id="tLock" class="hidden">🔒 Lock screen</button>
+      <button id="tResetBtn" class="hidden">Hold to reset hike</button>
+      <button id="tFinish" class="hidden">⏹ Finish &amp; save</button>
+    </div>
+    <p id="tTip">For best results: keep Trail Log open with the screen on. Choose “While Using” if iPhone asks about location. If your phone dims the screen, set Settings → Display &amp; Brightness → Auto-Lock → Never for your hike.</p>
+    <form id="tForm" hidden style="margin-top:14px">
+      <div class="full"><label>Hike name</label><input id="tName" type="text" placeholder="Morning ridge walk"></div>
+      <div class="full"><label>Pack weight (kg)</label><input id="tWeight" type="number" step="any" inputmode="decimal"></div>
+      <button type="submit" class="primary full">Save to Hiking log</button>
+      <button type="button" class="ghost full" id="tDiscard">Discard</button>
+    </form>
+  </div>
+</section>
+</div>
+<div id="lock" hidden>
+  <b id="lDist">0.00</b><div class="sm">km</div>
+  <b id="lTime" style="font-size:2rem">0:00:00</b>
+  <div class="sm" id="lMsg">Hike tracking · screen locked</div>
+  <button id="lBtn">Hold to unlock</button>
+</div>
+<script>
+(function(){
+var tab="hikes", items={hikes:[],camps:[]}, store=null, usingDb=false;
+var FIELDS={
+ hikes:[["name","Hike name","text","full"],["date","Date","date"],["distance","Distance (km)","number"],
+  ["duration","Duration (min)","number"],["elevation","Elevation gain (m)","number"],["weight","Pack weight (kg)","number"],
+  ["difficulty","Difficulty","select:Easy,Moderate,Hard,Extreme"],["rating","Rating","select:5,4,3,2,1"],
+  ["notes","Notes","textarea","full"]],
+ camps:[["name","Campsite name","text","full"],["type","Type","select:Wild,Tent site,Car camping,Hut/Shelter"],
+  ["rating","Rating","select:5,4,3,2,1"],["amenities","Amenities (water, toilets…)","text","full"],
+  ["notes","Notes","textarea","full"]]
+};
+var $=function(id){return document.getElementById(id)};
+function esc(s){var d=document.createElement("div");d.textContent=s==null?"":String(s);return d.innerHTML}
+
+function localStore(){
+  function load(k){try{return JSON.parse(localStorage.getItem("tl_"+k)||"[]")}catch(e){return[]}}
+  function save(k,v){try{localStorage.setItem("tl_"+k,JSON.stringify(v))}catch(e){}}
+  return{
+    sub:function(k,cb){cb(load(k))},
+    put:function(k,it){var a=load(k),i=a.findIndex(function(x){return x.id===it.id});if(i<0)a.push(it);else a[i]=it;save(k,a);items[k]=a;render()},
+    del:function(k,id){var a=load(k).filter(function(x){return x.id!==id});save(k,a);items[k]=a;render()}
+  };
+}
+function dbStore(db,uid){
+  function col(k){return db.collection("data/users/"+uid+"/"+k)}
+  return{
+    sub:function(k,cb){col(k).onSnapshot(function(s){
+      cb(s.docs.map(function(d){var o=typeof d.data==="function"?d.data():d.data;return Object.assign({id:d.id},o)}))},function(){})},
+    put:function(k,it){var id=it.id,o=Object.assign({},it);delete o.id;col(k).doc(id).set(o).catch(function(){alert("Couldn't save. Try again.")})},
+    del:function(k,id){col(k).doc(id).delete().catch(function(){})}
+  };
+}
+
+function buildForm(){
+  var f=$("form"),h="";
+  FIELDS[tab].forEach(function(x){
+    var id=x[0],cls=x[3]||"",inner;
+    if(x[2].indexOf("select:")===0)inner='<select id="f_'+id+'">'+x[2].slice(7).split(",").map(function(o){return"<option>"+o+"</option>"}).join("")+"</select>";
+    else if(x[2]==="textarea")inner='<textarea id="f_'+id+'" rows="2"></textarea>';
+    else inner='<input id="f_'+id+'" type="'+x[2]+'"'+(x[2]==="number"?' step="any" inputmode="decimal"':"")+">";
+    h+='<div class="'+cls+'"><label>'+x[1]+"</label>"+inner+"</div>";
+  });
+  h+='<div><label>Latitude</label><input id="f_lat" type="number" step="any" inputmode="decimal"></div><div><label>Longitude</label><input id="f_lng" type="number" step="any" inputmode="decimal"></div>'+
+     '<button type="button" class="ghost full" id="gps">📍 Use my current location</button><button type="submit" class="primary full">Save</button>';
+  f.innerHTML=h;
+  if(tab==="hikes")$("f_date").value=new Date().toISOString().slice(0,10);
+  $("gps").onclick=function(){
+    if(!navigator.geolocation){alert("Location isn't available here. Enter coordinates manually.");return}
+    $("gps").textContent="Locating…";
+    navigator.geolocation.getCurrentPosition(function(p){
+      $("f_lat").value=p.coords.latitude.toFixed(5);$("f_lng").value=p.coords.longitude.toFixed(5);$("gps").textContent="📍 Location set"
+    },function(){$("gps").textContent="📍 Use my current location";alert("Couldn't get location. Enter coordinates manually.")},{enableHighAccuracy:true,timeout:15000});
+  };
+  f.onsubmit=function(e){
+    e.preventDefault();
+    var it={id:"i"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),created:Date.now()};
+    FIELDS[tab].forEach(function(x){var v=$("f_"+x[0]).value;it[x[0]]=x[2]==="number"&&v!==""?Number(v):v});
+    if(!it.name){$("f_name").focus();return}
+    var la=$("f_lat").value,ln=$("f_lng").value;
+    if(la!==""&&ln!==""){it.lat=Number(la);it.lng=Number(ln)}
+    store.put(tab,it);f.hidden=true;setToggle();
+  };
+}
+function setToggle(){$("toggle").textContent=tab==="hikes"?"+ Log a hike":"+ Save a campsite"}
+function stat(n,l){return'<div class="stat"><b>'+n+"</b><span>"+l+"</span></div>"}
+
+function render(){
+  $("hc").textContent=items.hikes.length+(items.hikes.length===1?" hike logged":" hikes logged");
+  $("cc").textContent=items.camps.length+(items.camps.length===1?" campsite saved":" campsites saved");
+  var a=items[tab].slice().sort(function(x,y){
+    return tab==="hikes"?String(y.date||"").localeCompare(String(x.date||""))||(y.created||0)-(x.created||0):(y.created||0)-(x.created||0)});
+  var st="";
+  if(tab==="hikes"){var km=0,el=0;items.hikes.forEach(function(h){km+=h.distance||0;el+=h.elevation||0});
+    st=stat(items.hikes.length,"hikes")+stat(km.toFixed(1),"km total")+stat(Math.round(el),"m climbed");
+  }else{var loc=items.camps.filter(function(c){return c.lat!=null}).length;
+    st=stat(items.camps.length,"campsites")+stat(loc,"with location");}
+  $("stats").innerHTML=st;
+  if(!a.length){$("list").innerHTML='<div class="empty"><i>'+(tab==="hikes"?"🥾":"🏕️")+"</i>Nothing here yet. Add your first "+(tab==="hikes"?"hike":"campsite")+"!</div>";return}
+  $("list").innerHTML=a.map(function(i){
+    var m=[];
+    if(tab==="hikes"){if(i.date)m.push(i.date);if(i.distance!=null)m.push(i.distance+" km");
+      if(i.duration!=null)m.push(Math.floor(i.duration/60)+"h "+Math.round(i.duration%60)+"m");
+      if(i.elevation!=null)m.push("↑"+i.elevation+" m");if(i.avgSpeed)m.push("⚡ "+i.avgSpeed+" km/h");if(i.weight!=null)m.push("🎒 "+i.weight+" kg");if(i.difficulty)m.push(i.difficulty);
+    }else{if(i.type)m.push(i.type);if(i.amenities)m.push(i.amenities)}
+    var stars=i.rating?" "+"★".repeat(Number(i.rating)):"";
+    var map=i.lat!=null?'<a target="_blank" rel="noopener" href="https://www.google.com/maps?q='+i.lat+","+i.lng+'">📍 Open in Maps</a>':"";
+    return'<div class="card"><h3>'+esc(i.name)+'<span style="color:#d4a017">'+stars+'</span></h3><div class="meta">'+esc(m.join(" · "))+"</div>"+
+      (i.notes?'<p class="notes">'+esc(i.notes)+"</p>":"")+
+      '<div class="row">'+map+'<button class="del" data-id="'+esc(i.id)+'">Delete</button></div></div>';
+  }).join("");
+  Array.prototype.forEach.call(document.querySelectorAll(".del"),function(b){
+    b.onclick=function(){if(confirm("Delete this entry?"))store.del(tab,b.getAttribute("data-id"))}});
+}
+
+/* routing: #hiking, #camping, or home */
+function route(){
+  var h=(location.hash||"").replace("#","");
+  if(h==="hiking"||h==="camping"){
+    tab=h==="hiking"?"hikes":"camps";
+    $("home").classList.add("hidden");$("trk").classList.add("hidden");$("sub").classList.remove("hidden");
+    $("bar").className="bar "+(tab==="hikes"?"h":"c");
+    $("title").textContent=tab==="hikes"?"🥾 Hiking":"🏕️ Camping";
+    $("form").hidden=true;setToggle();buildForm();render();
+  }else{
+    $("sub").classList.add("hidden");
+    if(h==="track"){$("home").classList.add("hidden");$("trk").classList.remove("hidden");trkShow()}
+    else{$("home").classList.remove("hidden");$("trk").classList.add("hidden")}
+  }
+  window.scrollTo(0,0);
+}
+Array.prototype.forEach.call(document.querySelectorAll("[data-go]"),function(b){
+  b.onclick=function(){location.hash=b.getAttribute("data-go")}});
+$("back").onclick=function(){location.hash=""; if(location.hash==="")route()};
+$("toggle").onclick=function(){var f=$("form");f.hidden=!f.hidden};
+window.addEventListener("hashchange",route);
+
+/* ---------- GPS tracker ---------- */
+var T={on:false,paused:false,dist:0,gain:0,active:0,moving:0,last:null,altRef:null,startLL:null,speed:0,watch:null,tick:0,lastTick:0,wl:null};
+function haversine(a,b){var R=6371000,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lng-a.lng)*r;
+  var x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)*Math.sin(dn/2);return 2*R*Math.asin(Math.sqrt(x))}
+function warn(t){var w=$("tWarn");w.textContent=t;w.hidden=!t}
+function fmt(ms){var s=Math.floor(ms/1000);return Math.floor(s/3600)+":"+("0"+Math.floor(s%3600/60)).slice(-2)+":"+("0"+s%60).slice(-2)}
+function saveT(){try{localStorage.setItem("tl_track",JSON.stringify({dist:T.dist,gain:T.gain,active:T.active,moving:T.moving,startLL:T.startLL,altRef:T.altRef,gaps:T.gaps}))}catch(e){}}
+function tUpdate(){
+  $("tDist").textContent=(T.dist/1000).toFixed(2);
+  $("tTime").textContent=fmt(T.active);
+  $("tAvg").textContent=T.moving>0?((T.dist/1000)/(T.moving/3600000)).toFixed(1):"0.0";
+  $("tGain").textContent=Math.round(T.gain);
+  $("lDist").textContent=(T.dist/1000).toFixed(2);$("lTime").textContent=fmt(T.active);
+  $("tNow").textContent=(T.speed*3.6).toFixed(1);
+  $("tc").innerHTML=T.on?(T.paused?"Hike paused ⏸":"Hike in progress ●"):"Record distance, elevation &amp; speed live";
+}
+function tButtons(){
+  var running=T.on;$("tLock").classList.toggle("hidden",!running);$("tResetBtn").classList.toggle("hidden",!(running||T.dist>0)||!$("tForm").hidden);
+  $("tStart").classList.toggle("hidden",running||!$("tForm").hidden);
+  $("tPause").classList.toggle("hidden",!running);$("tFinish").classList.toggle("hidden",!running&&!(T.dist>0&&$("tForm").hidden));
+  $("tPause").textContent=T.paused?"▶ Resume":"⏸ Pause";
+}
+function onPos(p){
+  if(T.paused)return;
+  var c=p.coords;if(c.accuracy>30)return;
+  var pt={lat:c.latitude,lng:c.longitude,t:p.timestamp};
+  if(!T.startLL)T.startLL={lat:pt.lat,lng:pt.lng};
+  if(c.altitude!=null&&(c.altitudeAccuracy==null||c.altitudeAccuracy<=20)){
+    if(T.altRef==null)T.altRef=c.altitude;
+    else if(Math.abs(c.altitude-T.altRef)>=3){if(c.altitude>T.altRef)T.gain+=c.altitude-T.altRef;T.altRef=c.altitude}
+  }
+  if(T.last&&(pt.t-T.last.t)>30000){T.gaps++;warn("GPS signal was lost for "+fmt(pt.t-T.last.t)+". Keep Trail Log open with the screen on.")}
+  if(T.last){
+    var d=haversine(T.last,pt),dt=(pt.t-T.last.t)/1000;
+    if(dt>0){var v=d/dt;
+      if(d>=3&&v<12){T.dist+=d;T.speed=v;if(v>0.3)T.moving+=dt*1000}
+      else if(d<3){T.speed=0;return}
+    }
+  }
+  T.last=pt;saveT();tUpdate();
+}
+async function wake(){try{if(navigator.wakeLock&&T.on&&!T.paused&&!T.wl){T.wl=await navigator.wakeLock.request("screen");T.wl.addEventListener("release",function(){T.wl=null})}}catch(e){}}
+function unwake(){try{if(T.wl){T.wl.release();T.wl=null}}catch(e){}}
+document.addEventListener("visibilitychange",function(){
+  if(document.hidden){if(T.on&&!T.paused)T.hid=Date.now();return}
+  wake();
+  if(T.hid&&T.on&&Date.now()-T.hid>20000){T.gaps++;warn("Trail Log was in the background, so part of your hike may be missing.")}
+  T.hid=0;
+});
+function tStart(){
+  if(!navigator.geolocation){$("tStatus").textContent="Location isn't available in this browser.";return}
+  Object.assign(T,{on:true,paused:false,dist:0,gain:0,active:0,moving:0,last:null,altRef:null,startLL:null,speed:0});
+  T.gaps=0;warn("");$("tForm").hidden=true;$("tStatus").textContent="Finding GPS signal… keep the screen on.";
+  T.watch=navigator.geolocation.watchPosition(function(p){$("tStatus").textContent="Tracking ●";onPos(p)},function(e){
+    $("tStatus").textContent=e.code===1?"Location permission denied. Allow location for this page and try again.":"Can't get a GPS signal right now.";
+  },{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+  T.lastTick=Date.now();clearInterval(T.tick);
+  T.tick=setInterval(function(){var n=Date.now();if(T.on&&!T.paused)T.active+=n-T.lastTick;T.lastTick=n;if(T.on&&!T.paused&&Math.round(T.active/1000)%10===0)saveT();tUpdate()},1000);
+  wake();if(!navigator.wakeLock)warn("Your phone can't keep the screen on automatically. Set Auto-Lock to Never for your hike.");tButtons();tUpdate();
+}
+function tPause(){
+  T.paused=!T.paused;T.lastTick=Date.now();T.last=null;
+  if(T.paused){unwake();$("tStatus").textContent="Paused"}else{wake();$("tStatus").textContent="Tracking ●"}
+  tButtons();tUpdate();
+}
+function tFinish(){
+  unlockScr();
+  T.on=false;T.paused=false;clearInterval(T.tick);
+  if(T.watch!=null)navigator.geolocation.clearWatch(T.watch);T.watch=null;unwake();
+  $("tStatus").textContent="Finished. Name your hike to save it.";
+  $("tName").value="";$("tWeight").value="";$("tForm").hidden=false;tButtons();tUpdate();
+}
+var holdT=null,holdR=null;
+function tAbort(){clearInterval(T.tick);if(T.watch!=null)navigator.geolocation.clearWatch(T.watch);T.watch=null;unwake();unlockScr();tReset()}
+(function(){var b=$("tResetBtn");
+  function down(e){e.preventDefault();clearTimeout(holdR);b.classList.add("hold");b.textContent="Keep holding to reset…";holdR=setTimeout(function(){up();tAbort()},1500)}
+  function up(){clearTimeout(holdR);b.classList.remove("hold");b.textContent="Hold to reset hike"}
+  b.addEventListener("pointerdown",down);b.addEventListener("pointerup",up);b.addEventListener("pointerleave",up);b.addEventListener("pointercancel",up);
+  b.addEventListener("touchstart",function(e){e.preventDefault()},{passive:false});b.addEventListener("contextmenu",function(e){e.preventDefault()});
+})();
+function lockScr(){$("lock").hidden=false;wake()}
+function unlockScr(){$("lock").hidden=true;$("lBtn").classList.remove("hold");$("lBtn").textContent="Hold to unlock";clearTimeout(holdT)}
+$("tLock").onclick=lockScr;
+(function(){var b=$("lBtn");
+  function down(e){e.preventDefault();b.classList.add("hold");b.textContent="Keep holding…";holdT=setTimeout(unlockScr,1200)}
+  function up(){clearTimeout(holdT);b.classList.remove("hold");b.textContent="Hold to unlock"}
+  b.addEventListener("pointerdown",down);b.addEventListener("pointerup",up);b.addEventListener("pointerleave",up);b.addEventListener("pointercancel",up);
+  b.addEventListener("touchstart",function(e){e.preventDefault()},{passive:false});b.addEventListener("contextmenu",function(e){e.preventDefault()});
+})();
+function tReset(){T.gaps=0;warn("");Object.assign(T,{on:false,paused:false,dist:0,gain:0,active:0,moving:0,last:null,altRef:null,startLL:null,speed:0});
+  try{localStorage.removeItem("tl_track")}catch(e){}
+  $("tForm").hidden=true;$("tStatus").textContent="Ready. Keep your screen on while tracking.";tButtons();tUpdate()}
+function trkShow(){tButtons();tUpdate()}
+$("tStart").onclick=tStart;$("tPause").onclick=tPause;$("tFinish").onclick=tFinish;
+$("tDiscard").onclick=function(){if(confirm("Discard this hike?"))tReset()};
+$("tBack").onclick=function(){location.hash=""};
+$("tForm").onsubmit=function(e){
+  e.preventDefault();
+  var it={id:"i"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),created:Date.now(),
+    name:$("tName").value||"Tracked hike",date:new Date().toISOString().slice(0,10),
+    distance:Math.round(T.dist/10)/100,duration:Math.round(T.active/60000),elevation:Math.round(T.gain),
+    avgSpeed:T.moving>0?Math.round((T.dist/1000)/(T.moving/3600000)*10)/10:0,difficulty:"Moderate",rating:"5",notes:"Recorded with the GPS tracker."+(T.gaps?" GPS gaps: "+T.gaps+" (distance may be underestimated).":"")};
+  if($("tWeight").value!=="")it.weight=Number($("tWeight").value);
+  if(T.startLL){it.lat=T.startLL.lat;it.lng=T.startLL.lng}
+  store.put("hikes",it);tReset();location.hash="hiking";
+};
+
+/* recover an unfinished hike if the page was closed */
+try{var sv=JSON.parse(localStorage.getItem("tl_track")||"null");
+  if(sv&&sv.dist>0){Object.assign(T,sv);T.on=false;T.gaps=T.gaps||0;$("tForm").hidden=false;
+    $("tStatus").textContent="Recovered an unfinished hike. Save or discard it.";if(T.gaps)warn("Some GPS was missed during this hike.")}}catch(e){}
+
+function start(s){
+  store=s;["hikes","camps"].forEach(function(k){s.sub(k,function(a){items[k]=a;render()})});
+  $("note").textContent=usingDb?"Saved to your private account storage.":"Saved on this device only (browser storage).";
+}
+start(localStore());route();
+})();
+</script>
+</body>
+</html>
