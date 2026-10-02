@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <title>Trail Log</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="apple-touch-icon" href="icon.png">
 <meta name="theme-color" content="#14281f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -84,6 +83,10 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 .empty{text-align:center;color:var(--mute);padding:30px 10px}
 .empty i{display:block;font-size:2.4rem;font-style:normal;margin-bottom:6px}
 #note{font-size:.75rem;color:var(--mute);text-align:center;padding:10px 0 24px}
+#tMap,#vMap{width:100%;height:260px;border-radius:16px;background:#1f3328;display:block;margin-bottom:12px;touch-action:none}
+#vWrap{position:fixed;inset:0;z-index:98;background:var(--bg);overflow:auto;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 24px}
+#vWrap h2{margin:12px 0}
+.auto{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--mute);margin:0 0 12px}.auto input{width:auto}
 </style>
 </head>
 <body>
@@ -100,7 +103,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
     <button class="choice c" data-go="camping"><div class="ic">🏕️</div><div><b>Camping</b><span id="cc">0 campsites saved</span></div></button>
     <button class="choice t" data-go="track"><div class="ic">📡</div><div><b>Track a hike</b><span id="tc">Record distance, elevation &amp; speed live</span></div></button>
   </div>
-  <div class="tip">Your hikes and campsites are saved on this phone.</div>
+  <div class="tip">Tip: use your browser's “Add to Home Screen” to open Trail Log like a real app.</div>
 </section>
 
 <section id="sub" class="hidden">
@@ -119,6 +122,8 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
   <div class="body">
     <p id="tStatus">Ready. Keep your screen on while tracking.</p>
     <p id="tWarn" hidden></p>
+    <canvas id="tMap"></canvas>
+    <label class="auto"><input type="checkbox" id="tAuto"> Auto-pause when I stop moving</label>
     <div class="tgrid">
       <div class="tcell big"><b id="tDist">0.00</b><span>distance (km)</span></div>
       <div class="tcell"><b id="tTime">0:00:00</b><span>time</span></div>
@@ -143,6 +148,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
   </div>
 </section>
 </div>
+<div id="vWrap" hidden><button class="back" id="vClose" style="background:var(--acc)" aria-label="Close">←</button><h2 id="vTitle"></h2><canvas id="vMap"></canvas><div class="stats" id="vStats"></div></div>
 <div id="lock" hidden>
   <b id="lDist">0.00</b><div class="sm">km</div>
   <b id="lTime" style="font-size:2rem">0:00:00</b>
@@ -238,8 +244,9 @@ function render(){
     var map=i.lat!=null?'<a target="_blank" rel="noopener" href="https://www.google.com/maps?q='+i.lat+","+i.lng+'">📍 Open in Maps</a>':"";
     return'<div class="card"><h3>'+esc(i.name)+'<span style="color:#d4a017">'+stars+'</span></h3><div class="meta">'+esc(m.join(" · "))+"</div>"+
       (i.notes?'<p class="notes">'+esc(i.notes)+"</p>":"")+
-      '<div class="row">'+map+'<button class="del" data-id="'+esc(i.id)+'">Delete</button></div></div>';
+      '<div class="row">'+(i.route?'<button data-v="'+esc(i.id)+'">🗺️ Route</button>':"")+map+'<button class="del" data-id="'+esc(i.id)+'">Delete</button></div></div>';
   }).join("");
+  Array.prototype.forEach.call(document.querySelectorAll("[data-v]"),function(b){b.onclick=function(){viewRoute(items.hikes.filter(function(x){return x.id===b.getAttribute("data-v")})[0])}});
   Array.prototype.forEach.call(document.querySelectorAll(".del"),function(b){
     b.onclick=function(){if(confirm("Delete this entry?"))store.del(tab,b.getAttribute("data-id"))}});
 }
@@ -267,12 +274,12 @@ $("toggle").onclick=function(){var f=$("form");f.hidden=!f.hidden};
 window.addEventListener("hashchange",route);
 
 /* ---------- GPS tracker ---------- */
-var T={on:false,paused:false,dist:0,gain:0,active:0,moving:0,last:null,altRef:null,startLL:null,speed:0,watch:null,tick:0,lastTick:0,wl:null};
+var T={on:false,paused:false,dist:0,gain:0,active:0,moving:0,last:null,altRef:null,startLL:null,speed:0,watch:null,tick:0,lastTick:0,wl:null,pts:[],autoP:false,lastMove:0,auto:true};
 function haversine(a,b){var R=6371000,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lng-a.lng)*r;
   var x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)*Math.sin(dn/2);return 2*R*Math.asin(Math.sqrt(x))}
 function warn(t){var w=$("tWarn");w.textContent=t;w.hidden=!t}
 function fmt(ms){var s=Math.floor(ms/1000);return Math.floor(s/3600)+":"+("0"+Math.floor(s%3600/60)).slice(-2)+":"+("0"+s%60).slice(-2)}
-function saveT(){try{localStorage.setItem("tl_track",JSON.stringify({dist:T.dist,gain:T.gain,active:T.active,moving:T.moving,startLL:T.startLL,altRef:T.altRef,gaps:T.gaps}))}catch(e){}}
+function saveT(){try{localStorage.setItem("tl_track",JSON.stringify({dist:T.dist,gain:T.gain,active:T.active,moving:T.moving,startLL:T.startLL,altRef:T.altRef,gaps:T.gaps,pts:T.pts}))}catch(e){}}
 function tUpdate(){
   $("tDist").textContent=(T.dist/1000).toFixed(2);
   $("tTime").textContent=fmt(T.active);
@@ -280,6 +287,7 @@ function tUpdate(){
   $("tGain").textContent=Math.round(T.gain);
   $("lDist").textContent=(T.dist/1000).toFixed(2);$("lTime").textContent=fmt(T.active);
   $("tNow").textContent=(T.speed*3.6).toFixed(1);
+  if(!$("trk").classList.contains("hidden"))drawMap($("tMap"),T.pts);
   $("tc").innerHTML=T.on?(T.paused?"Hike paused ⏸":"Hike in progress ●"):"Record distance, elevation &amp; speed live";
 }
 function tButtons(){
@@ -288,6 +296,39 @@ function tButtons(){
   $("tPause").classList.toggle("hidden",!running);$("tFinish").classList.toggle("hidden",!running&&!(T.dist>0&&$("tForm").hidden));
   $("tPause").textContent=T.paused?"▶ Resume":"⏸ Pause";
 }
+function thin(a,n){if(a.length<=n)return a;var o=[],s=(a.length-1)/(n-1);for(var i=0;i<n;i++)o.push(a[Math.round(i*s)]);return o}
+function enc(a){return a.map(function(p){return p.join(",")}).join(";")}
+function dec(s){return s?s.split(";").map(function(r){var q=r.split(",");return[+q[0],+q[1],q[2]===""?null:+q[2],+q[3]]}):[]}
+function drawMap(cv,pts){
+  var dp=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;if(!w)return;
+  cv.width=w*dp;cv.height=h*dp;var g=cv.getContext("2d");g.scale(dp,dp);
+  g.strokeStyle="rgba(255,255,255,.07)";g.lineWidth=1;
+  for(var x=0;x<w;x+=36){g.beginPath();g.moveTo(x,0);g.lineTo(x,h);g.stroke()}
+  for(var y=0;y<h;y+=36){g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke()}
+  g.font="12px system-ui";
+  if(!pts.length){g.fillStyle="#9db0a5";g.textAlign="center";g.fillText("Your route will draw here",w/2,h/2);return}
+  var k=Math.cos(pts[0][0]*Math.PI/180),P=pts.map(function(p){return[p[1]*k,-p[0]]}),mn=[1e9,1e9],mx=[-1e9,-1e9];
+  P.forEach(function(a){for(var j=0;j<2;j++){mn[j]=Math.min(mn[j],a[j]);mx[j]=Math.max(mx[j],a[j])}});
+  var sc=(Math.min(w,h)-56)/Math.max(mx[0]-mn[0],mx[1]-mn[1],0.0004),ox=w/2-(mn[0]+mx[0])/2*sc,oy=h/2-(mn[1]+mx[1])/2*sc;
+  var X=function(a){return a[0]*sc+ox},Y=function(a){return a[1]*sc+oy};
+  var V=[0],mv=1;
+  for(var i=1;i<pts.length;i++){var dt=pts[i][3]-pts[i-1][3],v=dt>0?haversine({lat:pts[i-1][0],lng:pts[i-1][1]},{lat:pts[i][0],lng:pts[i][1]})/dt:0;V.push(v);if(v>mv&&v<12)mv=v}
+  g.lineCap=g.lineJoin="round";g.lineWidth=8;g.strokeStyle="rgba(0,0,0,.45)";g.beginPath();
+  P.forEach(function(a,i){i?g.lineTo(X(a),Y(a)):g.moveTo(X(a),Y(a))});g.stroke();
+  g.lineWidth=4.5;
+  for(i=1;i<P.length;i++){g.strokeStyle="hsl("+(200-190*Math.min(1,V[i]/mv))+",90%,58%)";g.beginPath();g.moveTo(X(P[i-1]),Y(P[i-1]));g.lineTo(X(P[i]),Y(P[i]));g.stroke()}
+  function dot(a,c){g.fillStyle=c;g.strokeStyle="#fff";g.lineWidth=2.5;g.beginPath();g.arc(X(a),Y(a),7,0,7);g.fill();g.stroke()}
+  dot(P[0],"#2ecc71");if(P.length>1)dot(P[P.length-1],"#e74c3c");
+  var mpp=111320/sc,L=10;[10,20,50,100,200,500,1000,2000,5000,10000].forEach(function(n){if(n/mpp<=80)L=n});
+  g.strokeStyle=g.fillStyle="#e8efe9";g.lineWidth=2;g.beginPath();g.moveTo(14,h-14);g.lineTo(14+L/mpp,h-14);g.stroke();
+  g.textAlign="left";g.fillText(L>=1000?L/1000+" km":L+" m",14,h-20);g.textAlign="right";g.fillText("N ↑",w-12,20);
+}
+var vPts=[];
+function viewRoute(it){if(!it)return;vPts=dec(it.route);$("vTitle").textContent=it.name;$("vWrap").hidden=false;drawMap($("vMap"),vPts);
+  var m=it.distance>0&&it.duration?it.duration/it.distance:0,pace=m?Math.floor(m)+":"+("0"+Math.min(59,Math.round(m%1*60))).slice(-2):"–";
+  $("vStats").innerHTML=stat(it.distance+" km","distance")+stat(Math.floor(it.duration/60)+"h "+Math.round(it.duration%60)+"m","time")+stat(pace,"min/km")+stat("↑"+(it.elevation||0)+" m","climb")}
+$("vClose").onclick=function(){$("vWrap").hidden=true};
+window.addEventListener("resize",function(){drawMap($("vMap"),vPts);drawMap($("tMap"),T.pts)});
 function onPos(p){
   if(T.paused)return;
   var c=p.coords;if(c.accuracy>30)return;
@@ -298,13 +339,19 @@ function onPos(p){
     else if(Math.abs(c.altitude-T.altRef)>=3){if(c.altitude>T.altRef)T.gain+=c.altitude-T.altRef;T.altRef=c.altitude}
   }
   if(T.last&&(pt.t-T.last.t)>30000){T.gaps++;warn("GPS signal was lost for "+fmt(pt.t-T.last.t)+". Keep Trail Log open with the screen on.")}
+  var rec=function(){T.pts.push([+pt.lat.toFixed(5),+pt.lng.toFixed(5),c.altitude!=null?Math.round(c.altitude):null,Math.round(pt.t/1000)]);if(T.pts.length>4000)T.pts=T.pts.filter(function(_,i,a){return i%2===0||i===a.length-1})};
   if(T.last){
     var d=haversine(T.last,pt),dt=(pt.t-T.last.t)/1000;
     if(dt>0){var v=d/dt;
-      if(d>=3&&v<12){T.dist+=d;T.speed=v;if(v>0.3)T.moving+=dt*1000}
+      if(T.autoP){
+        if(d<8){T.speed=0;return}
+        T.autoP=false;T.lastMove=Date.now();T.last=pt;rec();$("tStatus").textContent="Tracking ●";saveT();tUpdate();return;
+      }
+      if(d>=3&&v>=0.3&&v<12){T.dist+=d;T.speed=v;T.moving+=dt*1000;T.lastMove=Date.now();rec()}
       else if(d<3){T.speed=0;return}
+      else if(v<0.3){T.speed=0}
     }
-  }
+  }else{rec();T.lastMove=Date.now()}
   T.last=pt;saveT();tUpdate();
 }
 async function wake(){try{if(navigator.wakeLock&&T.on&&!T.paused&&!T.wl){T.wl=await navigator.wakeLock.request("screen");T.wl.addEventListener("release",function(){T.wl=null})}}catch(e){}}
@@ -317,17 +364,17 @@ document.addEventListener("visibilitychange",function(){
 });
 function tStart(){
   if(!navigator.geolocation){$("tStatus").textContent="Location isn't available in this browser.";return}
-  Object.assign(T,{on:true,paused:false,dist:0,gain:0,active:0,moving:0,last:null,altRef:null,startLL:null,speed:0});
+  Object.assign(T,{pts:[],autoP:false,lastMove:Date.now(),on:true,paused:false,dist:0,gain:0,active:0,moving:0,last:null,altRef:null,startLL:null,speed:0});
   T.gaps=0;warn("");$("tForm").hidden=true;$("tStatus").textContent="Finding GPS signal… keep the screen on.";
-  T.watch=navigator.geolocation.watchPosition(function(p){$("tStatus").textContent="Tracking ●";onPos(p)},function(e){
+  T.watch=navigator.geolocation.watchPosition(function(p){if(!T.autoP&&!T.paused)$("tStatus").textContent="Tracking ●";onPos(p)},function(e){
     $("tStatus").textContent=e.code===1?"Location permission denied. Allow location for this page and try again.":"Can't get a GPS signal right now.";
   },{enableHighAccuracy:true,maximumAge:0,timeout:20000});
   T.lastTick=Date.now();clearInterval(T.tick);
-  T.tick=setInterval(function(){var n=Date.now();if(T.on&&!T.paused)T.active+=n-T.lastTick;T.lastTick=n;if(T.on&&!T.paused&&Math.round(T.active/1000)%10===0)saveT();tUpdate()},1000);
+  T.tick=setInterval(function(){var n=Date.now();if(T.auto&&T.on&&!T.paused&&!T.autoP&&T.last&&n-T.lastMove>10000){T.autoP=true;$("tStatus").textContent="Auto-paused ⏸ Start moving to resume"}if(T.on&&!T.paused&&!T.autoP)T.active+=n-T.lastTick;T.lastTick=n;if(T.on&&!T.paused&&Math.round(T.active/1000)%10===0)saveT();tUpdate()},1000);
   wake();if(!navigator.wakeLock)warn("Your phone can't keep the screen on automatically. Set Auto-Lock to Never for your hike.");tButtons();tUpdate();
 }
 function tPause(){
-  T.paused=!T.paused;T.lastTick=Date.now();T.last=null;
+  T.paused=!T.paused;T.lastTick=Date.now();T.last=null;T.autoP=false;T.lastMove=Date.now();
   if(T.paused){unwake();$("tStatus").textContent="Paused"}else{wake();$("tStatus").textContent="Tracking ●"}
   tButtons();tUpdate();
 }
@@ -355,10 +402,12 @@ $("tLock").onclick=lockScr;
   b.addEventListener("pointerdown",down);b.addEventListener("pointerup",up);b.addEventListener("pointerleave",up);b.addEventListener("pointercancel",up);
   b.addEventListener("touchstart",function(e){e.preventDefault()},{passive:false});b.addEventListener("contextmenu",function(e){e.preventDefault()});
 })();
-function tReset(){T.gaps=0;warn("");Object.assign(T,{on:false,paused:false,dist:0,gain:0,active:0,moving:0,last:null,altRef:null,startLL:null,speed:0});
+function tReset(){T.gaps=0;warn("");Object.assign(T,{pts:[],autoP:false,on:false,paused:false,dist:0,gain:0,active:0,moving:0,last:null,altRef:null,startLL:null,speed:0});
   try{localStorage.removeItem("tl_track")}catch(e){}
   $("tForm").hidden=true;$("tStatus").textContent="Ready. Keep your screen on while tracking.";tButtons();tUpdate()}
 function trkShow(){tButtons();tUpdate()}
+try{T.auto=localStorage.getItem("tl_auto")!=="0"}catch(e){}$("tAuto").checked=T.auto;
+$("tAuto").onchange=function(){T.auto=this.checked;try{localStorage.setItem("tl_auto",this.checked?"1":"0")}catch(e){}};
 $("tStart").onclick=tStart;$("tPause").onclick=tPause;$("tFinish").onclick=tFinish;
 $("tDiscard").onclick=function(){if(confirm("Discard this hike?"))tReset()};
 $("tBack").onclick=function(){location.hash=""};
@@ -370,6 +419,7 @@ $("tForm").onsubmit=function(e){
     avgSpeed:T.moving>0?Math.round((T.dist/1000)/(T.moving/3600000)*10)/10:0,difficulty:"Moderate",rating:"5",notes:"Recorded with the GPS tracker."+(T.gaps?" GPS gaps: "+T.gaps+" (distance may be underestimated).":"")};
   if($("tWeight").value!=="")it.weight=Number($("tWeight").value);
   if(T.startLL){it.lat=T.startLL.lat;it.lng=T.startLL.lng}
+  if(T.pts.length>1)it.route=enc(thin(T.pts,1200));
   store.put("hikes",it);tReset();location.hash="hiking";
 };
 
@@ -383,6 +433,15 @@ function start(s){
   $("note").textContent=usingDb?"Saved to your private account storage.":"Saved on this device only (browser storage).";
 }
 start(localStore());route();
+(async function(){
+  try{
+    if(!window.claude)return;
+    var db=await claude.use("db"),user=await claude.use("user");
+    if(!db||!user)return;
+    var uid=await user.id();
+    usingDb=true;items={hikes:[],camps:[]};start(dbStore(db,uid));
+  }catch(e){}
+})();
 })();
 </script>
 </body>
